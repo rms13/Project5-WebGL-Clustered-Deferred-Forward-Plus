@@ -1,15 +1,16 @@
 export default function(params) {
-  return `
-  #version 100
+  return `#version 300 es //100
   precision highp float;
 
   uniform sampler2D u_colmap;
   uniform sampler2D u_normap;
   uniform sampler2D u_lightbuffer;
 
-  varying vec3 v_position;
-  varying vec3 v_normal;
-  varying vec2 v_uv;
+  in vec3 v_position;
+  in vec3 v_normal;
+  in vec2 v_uv;
+
+  out vec4 out_Color;
 
   vec3 applyNormalMap(vec3 geomnor, vec3 normap) {
     normap = normap * 2.0 - 1.0;
@@ -25,11 +26,11 @@ export default function(params) {
     vec3 color;
   };
 
-  float ExtractFloat(sampler2D texture, int textureWidth, int textureHeight, int index, int component) {
+  float ExtractFloat(sampler2D textureToSample, int textureWidth, int textureHeight, int index, int component) {
     float u = float(index + 1) / float(textureWidth + 1);
     int pixel = component / 4;
     float v = float(pixel + 1) / float(textureHeight + 1);
-    vec4 texel = texture2D(texture, vec2(u, v));
+    vec4 texel = texture(textureToSample, vec2(u, v));
     int pixelComponent = component - pixel * 4;
     if (pixelComponent == 0) {
       return texel[0];
@@ -45,8 +46,8 @@ export default function(params) {
   Light UnpackLight(int index) {
     Light light;
     float u = float(index + 1) / float(${params.numLights + 1});
-    vec4 v1 = texture2D(u_lightbuffer, vec2(u, 0.0));
-    vec4 v2 = texture2D(u_lightbuffer, vec2(u, 0.5));
+    vec4 v1 = texture(u_lightbuffer, vec2(u, 0.0));
+    vec4 v2 = texture(u_lightbuffer, vec2(u, 0.5));
     light.position = v1.xyz;
 
     // LOOK: This extracts the 4th float (radius) of the (index)th light in the buffer
@@ -70,11 +71,16 @@ export default function(params) {
   }
 
   void main() {
-    vec3 albedo = texture2D(u_colmap, v_uv).rgb;
-    vec3 normap = texture2D(u_normap, v_uv).xyz;
+    vec3 albedo = texture(u_colmap, v_uv).rgb;
+    vec3 normap = texture(u_normap, v_uv).xyz;
     vec3 normal = applyNormalMap(v_normal, normap);
 
     vec3 fragColor = vec3(0.0);
+
+    // DIRECTIONAL LIGHT - SUN
+    vec3 sunDir = normalize(vec3(1.0, 0.5, 1.0));
+    vec3 sunCol = vec3(0.5, 0.5, 0.4);
+    fragColor += albedo * sunCol * max(dot(sunDir, normal), 0.0);
 
     for (int i = 0; i < ${params.numLights}; ++i) {
       Light light = UnpackLight(i);
@@ -90,7 +96,8 @@ export default function(params) {
     const vec3 ambientLight = vec3(0.025);
     fragColor += albedo * ambientLight;
 
-    gl_FragColor = vec4(fragColor, 1.0);
+    // gl_FragColor = vec4(fragColor, 1.0);
+    out_Color = vec4(fragColor, 1.0);
   }
   `;
 }
