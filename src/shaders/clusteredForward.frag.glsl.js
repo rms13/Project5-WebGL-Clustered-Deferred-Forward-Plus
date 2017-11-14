@@ -1,6 +1,5 @@
 export default function(params) {
-  return `
-  #version 100
+  return `#version 300 es //100
   precision highp float;
 
   uniform sampler2D u_colmap;
@@ -17,9 +16,11 @@ export default function(params) {
   uniform float u_camF;
   uniform vec3 u_camPos;
 
-  varying vec3 v_position;
-  varying vec3 v_normal;
-  varying vec2 v_uv;
+  in vec3 v_position;
+  in vec3 v_normal;
+  in vec2 v_uv;
+
+  out vec4 out_Color;
 
   vec3 applyNormalMap(vec3 geomnor, vec3 normap) {
     normap = normap * 2.0 - 1.0;
@@ -35,11 +36,11 @@ export default function(params) {
     vec3 color;
   };
 
-  float ExtractFloat(sampler2D texture, int textureWidth, int textureHeight, int index, int component) {
+  float ExtractFloat(sampler2D textureToSample, int textureWidth, int textureHeight, int index, int component) {
     float u = float(index + 1) / float(textureWidth + 1);
     int pixel = component / 4;
     float v = float(pixel + 1) / float(textureHeight + 1);
-    vec4 texel = texture2D(texture, vec2(u, v));
+    vec4 texel = texture(textureToSample, vec2(u, v));
     int pixelComponent = component - pixel * 4;
     if (pixelComponent == 0) {
       return texel[0];
@@ -55,8 +56,8 @@ export default function(params) {
   Light UnpackLight(int index) {
     Light light;
     float u = float(index + 1) / float(${params.numLights + 1});
-    vec4 v1 = texture2D(u_lightbuffer, vec2(u, 0.3));
-    vec4 v2 = texture2D(u_lightbuffer, vec2(u, 0.6));
+    vec4 v1 = texture(u_lightbuffer, vec2(u, 0.3));
+    vec4 v2 = texture(u_lightbuffer, vec2(u, 0.6));
     light.position = v1.xyz;
 
     // LOOK: This extracts the 4th float (radius) of the (index)th light in the buffer
@@ -80,8 +81,8 @@ export default function(params) {
   }
 
   void main() {
-    vec3 albedo = texture2D(u_colmap, v_uv).rgb;
-    vec3 normap = texture2D(u_normap, v_uv).xyz;
+    vec3 albedo = texture(u_colmap, v_uv).rgb;
+    vec3 normap = texture(u_normap, v_uv).xyz;
     vec3 normal = applyNormalMap(v_normal, normap);
 
     vec3 fragColor = vec3(0.0);
@@ -105,7 +106,7 @@ export default function(params) {
     int clusterHeight = int(float(${params.maxLights}+1) / 4.0) + 1;
     float clusterU = float(clusterIdx + 1) / float(clusterWidth + 1); // like u in UnpackLight()..
 
-    int numLights = int(texture2D(u_clusterbuffer, vec2(clusterU, 0.0)).x); // clamp to max lights in scene if this misbehaves..
+    int numLights = int(texture(u_clusterbuffer, vec2(clusterU, 0.0)).x); // clamp to max lights in scene if this misbehaves..
 
     for (int i = 0; i < ${params.numLights}; i++) {
       if(i >= numLights) {
@@ -114,7 +115,7 @@ export default function(params) {
 
       int clusterPixel = int(float(i+1) / 4.0); // FIXED BUG: offset by 1
       float clusterV = float(clusterPixel+1) / float(clusterHeight+1);
-      vec4 texel = texture2D(u_clusterbuffer, vec2(clusterU, clusterV));
+      vec4 texel = texture(u_clusterbuffer, vec2(clusterU, clusterV));
       int lightIdx;
       int clusterPixelComponent = (i+1) - (clusterPixel * 4);
       if (clusterPixelComponent == 0) {
@@ -138,10 +139,10 @@ export default function(params) {
 
       float specular = 0.0;
       // blinn-phong shading... https://en.wikipedia.org/wiki/Blinn%E2%80%93Phong_shading_model
-      // vec3 viewDir = normalize(u_camPos-v_position);
-      // vec3 halfDir = normalize(L + viewDir);
-      // float specAngle = max(dot(halfDir, normal), 0.0);
-      // specular = pow(specAngle, 100.0); // 100 -> shininess
+      vec3 viewDir = normalize(u_camPos - v_position);
+      vec3 halfDir = normalize(L + viewDir);
+      float specAngle = max(dot(halfDir, normal), 0.0);
+      specular = pow(specAngle, 100.0); // 100 -> shininess
 
       fragColor += (albedo + vec3(specular)) * lambertTerm * light.color * vec3(lightIntensity);
     }
@@ -149,7 +150,7 @@ export default function(params) {
     const vec3 ambientLight = vec3(0.025);
     fragColor += albedo * ambientLight; // float(numLights) // vec3(float(u_slices.x)/2.0, float(u_slices.y)/2.0, float(u_slices.z)/2.0)
 
-    gl_FragColor = vec4(fragColor, 1.0);
+    out_Color = vec4(fragColor, 1.0);
   }
   `;
 }
