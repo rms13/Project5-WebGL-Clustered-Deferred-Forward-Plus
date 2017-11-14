@@ -1,5 +1,4 @@
 #version 300 es
-//#extension GL_EXT_draw_buffers: enable
 precision highp float;
 
 uniform sampler2D u_colmap;
@@ -26,7 +25,6 @@ void main() {
     vec3 col = vec3(texture(u_colmap, v_uv));
 
     // TODO: populate your g buffer
-
     fragData[0] = vec4(v_position, 1.0);
     fragData[1] = vec4(col, 1.0);
     fragData[2] = vec4(norm, 1.0);

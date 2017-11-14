@@ -1,4 +1,4 @@
-import { gl, /*WEBGL_draw_buffers,*/ canvas } from '../init';
+import { gl, canvas } from '../init';
 import { mat4, vec4 } from 'gl-matrix';
 import { loadShaderProgram, renderFullscreenQuad } from '../utils';
 import { NUM_LIGHTS } from '../scene';
@@ -62,23 +62,7 @@ export default class ClusteredDeferredRenderer extends ClusteredRenderer {
 
     // Create, bind, and store "color" target textures for the FBO
     this._gbuffers = new Array(NUM_GBUFFERS);
-    let attachments = new Array(NUM_GBUFFERS);
-    // for (let i = 0; i < NUM_GBUFFERS; i++) {
-    //   //attachments[i] = WEBGL_draw_buffers[`COLOR_ATTACHMENT${i}_WEBGL`];
-    //   this._gbuffers[i] = gl.createTexture();
-    //   gl.bindTexture(gl.TEXTURE_2D, this._gbuffers[i]);
-    //   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    //   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    //   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    //   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    //   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, width, height, 0, gl.RGBA, gl.FLOAT, null);
-    //   gl.bindTexture(gl.TEXTURE_2D, null);
-
-    //   // console.log(`gl.COLOR_ATTACHMENT${i}`);
-
-    //   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0/*`gl.COLOR_ATTACHMENT${i}`*/, gl.TEXTURE_2D, this._gbuffers[i], 0);      
-    // }
-
+    //let attachments = new Array(NUM_GBUFFERS);
 
     this._gbuffers[0] = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, this._gbuffers[0]);
@@ -131,10 +115,10 @@ export default class ClusteredDeferredRenderer extends ClusteredRenderer {
     this._height = height;
 
     gl.bindTexture(gl.TEXTURE_2D, this._depthTex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT24/*gl.DEPTH_COMPONENT*/, width, height, 0, gl.DEPTH_COMPONENT24/*gl.DEPTH_COMPONENT*/, gl.UNSIGNED_SHORT, null);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT16, width, height, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_SHORT, null);
     for (let i = 0; i < NUM_GBUFFERS; i++) {
       gl.bindTexture(gl.TEXTURE_2D, this._gbuffers[i]);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.FLOAT, null);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, width, height, 0, gl.RGBA, gl.FLOAT, null);
     }
     gl.bindTexture(gl.TEXTURE_2D, null);
   }
@@ -206,14 +190,6 @@ export default class ClusteredDeferredRenderer extends ClusteredRenderer {
     gl.uniform3f(this._progShade.u_camPos, camera.position.x, camera.position.y, camera.position.z);
 
     // Bind g-buffers
-    const firstGBufferBinding = 0; // You may have to change this if you use other texture slots
-    // for (let i = 0; i < NUM_GBUFFERS; i++) {
-    //   gl.activeTexture(`gl.TEXTURE${i + firstGBufferBinding}`);
-    //   gl.bindTexture(gl.TEXTURE_2D, this._gbuffers[i]);
-    //   gl.uniform1i(this._progShade[`u_gbuffers[${i}]`], i + firstGBufferBinding);
-    // }
-
-
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this._gbuffers[0]);
     gl.uniform1i(this._progShade[`u_gbuffers[0]`], 0);
@@ -225,7 +201,6 @@ export default class ClusteredDeferredRenderer extends ClusteredRenderer {
     gl.activeTexture(gl.TEXTURE2);
     gl.bindTexture(gl.TEXTURE_2D, this._gbuffers[2]);
     gl.uniform1i(this._progShade[`u_gbuffers[2]`], 2);
-
 
     // Bind the light and cluster textures...
     // Set the light texture as a uniform input to the shader

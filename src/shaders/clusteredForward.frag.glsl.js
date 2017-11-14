@@ -1,5 +1,5 @@
 export default function(params) {
-  return `#version 300 es //100
+  return `#version 300 es
   precision highp float;
 
   uniform sampler2D u_colmap;
